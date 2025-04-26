@@ -4,22 +4,34 @@ This application uses YOLOv8 to detect objects in images and crop them automatic
 
 ## Installation
 
-### Option 1: Using the Pre-built Binary
+> **Note:** When cloning this repository from Git, the build and dist folders are excluded.
+> You must build the application from source as described below.
+
+### Building from Source
+
+To build the application from the source code:
+
+1. Follow the detailed instructions in `build_windows.md`
+2. This will create the executable in the `dist\object_detection` folder
+
+### Releases
+
+If you've downloaded a release package (not cloning from Git):
 
 1. Extract the zip file to any location on your computer
-2. Double-click `run_app.bat` to start the application
-
-### Option 2: Building from Source
-
-If you want to build the application yourself, see `build_windows.md` for detailed instructions.
+2. Double-click `object_detection.exe` to start the application
 
 ## Using the Application
 
-1. When you start the application, it will prompt you to select a folder containing images
-2. Select a folder with JPG, JPEG, PNG, BMP, or GIF images
-3. The application will process all images in the folder
-4. Cropped images will be saved to an `output` subfolder within your selected folder
-5. A completion message will display when finished
+1. When you start the application, a splash screen will appear while the model loads
+2. You will be prompted to select a folder containing images
+3. Select a folder with JPG, JPEG, PNG, BMP, or GIF images
+4. The application will show a progress window as it processes each image
+   - You can monitor which image is currently being processed
+   - You can cancel the process at any time using the Cancel button
+5. Cropped images will be saved to an `output` subfolder within your selected folder
+6. A completion summary will display when finished
+7. The application will automatically close after processing
 
 ## Troubleshooting
 
