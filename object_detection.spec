@@ -1,0 +1,61 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+block_cipher = None
+
+a = Analysis(
+    ['main.py'],
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('best.pt', '.'),  # Include the model file at root level
+        ('footage', 'footage'),  # Include example images
+        ('output', 'output'),  # Include output directory
+        ('footage/.keep', 'footage'),  # Ensure footage folder is created
+        ('output/.keep', 'output'),  # Ensure output folder is created
+    ],
+    hiddenimports=['ultralytics', 'PIL'],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='object_detection',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    console=False,  # Set to False for windowed mode
+    disable_windowed_traceback=False,
+    argv_emulation=True,  # Enable argv emulation for macOS
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    info_plist={
+        'CFBundleShortVersionString': '1.0.0',
+        'CFBundleName': 'Object Detection',
+        'NSHighResolutionCapable': 'True',
+    },
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='object_detection',
+) 
