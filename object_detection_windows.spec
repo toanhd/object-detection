@@ -8,10 +8,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ('best.pt', '.'),  # Include the model file at root level
-        ('footage', 'footage'),  # Include example images
-        ('output', 'output'),  # Include output directory
-        ('footage/.keep', 'footage'),  # Ensure footage folder is created
-        ('output/.keep', 'output'),  # Ensure output folder is created
     ],
     hiddenimports=['ultralytics', 'PIL'],
     hookspath=[],
@@ -38,11 +34,11 @@ exe = EXE(
     upx=True,
     console=False,  # Set to False for Windows GUI mode
     disable_windowed_traceback=False,
-    argv_emulation=False,  # Disable macOS argv emulation for Windows
+    argv_emulation=False,  
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.ico',  # Icon for Windows executable (create this file)
+    icon='app_icon.ico',  
 )
 
 coll = COLLECT(
