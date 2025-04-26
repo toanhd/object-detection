@@ -11,53 +11,71 @@ A simple desktop application for detecting and cropping objects from images usin
 - Processes images from any user-selected folder
 - Crops detected objects and saves them to an "output" subfolder
 
-## Using the Application
+## Overview
 
-> **Note:** When cloning this repository from Git, the build and dist folders are excluded.
-> You must build the application from source as described in the "Building from Source" section below.
+This application provides a simple interface for detecting objects in images using YOLOv8:
 
-### Prerequisites
+1. Select a folder containing images to process
+2. The application detects objects and crops them automatically
+3. Cropped images are saved to an output subfolder
+4. Progress is displayed in real-time with the option to cancel
+5. A summary is shown when processing completes
 
-The packaged application contains all necessary dependencies and should run without installing Python or any packages.
-
-### Running After Building
-
-1. Navigate to the `dist/object_detection/` directory after building
-2. Run the application by double-clicking the `object_detection` executable
-3. When prompted, select a folder containing your images
-4. The application will show progress as it processes each image
-5. You can cancel processing at any time using the Cancel button
-6. The processed images will be saved in the `output` subfolder of your selected directory
-7. A summary will display when complete, and the application will close automatically
-
-### Custom Model
+## Custom Model
 
 The application will look for a trained model at `best.pt` in the application directory. If the model is not found, it will use the default YOLOv8n model.
 
-To use your own model:
+## Running from Source
 
-1. Place your trained YOLOv8 model in the application directory named as `best.pt`
-2. Run the application as usual
+If you prefer to run the application directly from source code rather than building an executable:
+
+1. Create and activate a virtual environment:
+
+   **Windows:**
+
+   ```cmd
+   python -m venv venv
+   venv\Scripts\activate
+   ```
+
+   **macOS/Linux:**
+
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+2. Install the required packages:
+
+   ```bash
+   pip install ultralytics pillow
+   ```
+
+3. Run the application:
+   ```bash
+   python main.py
+   ```
 
 ## Building from Source
 
-Building from source is required when cloning this repository:
+When cloning this repository from Git, you must build the application from source.
 
-1. Clone the repository and navigate to the project directory
-2. Install the required packages:
+For detailed build instructions across all platforms (Windows, macOS, Linux), see:
 
-   ```
-   pip install ultralytics pillow pyinstaller
-   ```
+- `build.md` - Comprehensive build documentation with platform-specific instructions
 
-3. Run the build script:
+To automate the build process, a build script is provided:
 
-   ```
-   python build.py
-   ```
+- `build.py` - Python script that handles the build process
 
-4. The packaged application will be available in the `dist/object_detection` directory
+Basic build steps:
 
-For platform-specific build instructions, see:
+```bash
+# Install required packages
+pip install ultralytics pillow pyinstaller
 
-- `build_windows.md` for Windows build details
+# Run the build script
+python build.py
+```
+
+The packaged application will be created in the `dist/object_detection` directory.

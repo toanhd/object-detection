@@ -8,10 +8,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ('best.pt', '.'),  # Include the model file at root level
-        ('footage', 'footage'),  # Include example images
-        ('output', 'output'),  # Include output directory
-        ('footage/.keep', 'footage'),  # Ensure footage folder is created
-        ('output/.keep', 'output'),  # Ensure output folder is created
     ],
     hiddenimports=['ultralytics', 'PIL'],
     hookspath=[],
