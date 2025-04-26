@@ -458,4 +458,5 @@ if __name__ == "__main__":
     
     print(RESULT)
     
+    # Exit the application immediately
     sys.exit()

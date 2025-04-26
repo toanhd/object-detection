@@ -19,7 +19,7 @@ This application provides a simple interface for detecting objects in images usi
 2. The application detects objects and crops them automatically
 3. Cropped images are saved to an output subfolder
 4. Progress is displayed in real-time with the option to cancel
-5. A summary is shown when processing completes
+5. The application exits automatically when processing completes
 
 ## Custom Model
 
