@@ -10,6 +10,7 @@ Returns:
 
 import sys
 import time
+import platform
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -80,7 +81,10 @@ def show_splash_screen():
     splash_root.title("Object Detection")
     splash_root.geometry("400x200")
     splash_root.resizable(False, False)
-    splash_root.overrideredirect(True)  # Remove window decorations
+    
+    # Only use overrideredirect on Windows, not on macOS
+    if platform.system() == 'Windows':
+        splash_root.overrideredirect(True)  # Remove window decorations
     
     # Center the window
     window_width = 400
