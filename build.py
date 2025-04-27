@@ -20,9 +20,9 @@ if not Path("best.pt").exists():
 
 # Select the appropriate spec file based on the OS
 if operating_system == "Windows":
-    spec_file = "object_detection_windows.spec"
-    if not Path(spec_file).exists():
-        print(f"Warning: {spec_file} not found, creating a basic spec file.")
+    SPEC_FILE = "object_detection_windows.spec"
+    if not Path(SPEC_FILE).exists():
+        print(f"Warning: {SPEC_FILE} not found, creating a basic spec file.")
         # Create a basic spec file if it doesn't exist
         subprocess.run([
             "pyinstaller", 
@@ -30,12 +30,12 @@ if operating_system == "Windows":
             "--onedir", 
             "--windowed", 
             "main.py"
-        ])
+        ], check=True)
 else:
     # macOS or Linux
-    spec_file = "object_detection.spec"
-    if not Path(spec_file).exists():
-        print(f"Warning: {spec_file} not found, creating a basic spec file.")
+    SPEC_FILE = "object_detection.spec"
+    if not Path(SPEC_FILE).exists():
+        print(f"Warning: {SPEC_FILE} not found, creating a basic spec file.")
         # Create a basic spec file if it doesn't exist
         subprocess.run([
             "pyinstaller", 
@@ -43,12 +43,12 @@ else:
             "--onedir", 
             "--windowed", 
             "main.py"
-        ])
+        ], check=True)
 
 # Run PyInstaller with the appropriate spec file
-print(f"Starting build process using {spec_file}...")
+print(f"Starting build process using {SPEC_FILE}...")
 try:
-    subprocess.run(["pyinstaller", spec_file, "--noconfirm"], check=True)
+    subprocess.run(["pyinstaller", SPEC_FILE, "--noconfirm"], check=True)
     print("Build complete!")
     
     # Print the location of the built application
