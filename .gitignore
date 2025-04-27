@@ -3,3 +3,4 @@ build/
 dist/
 object-detection/
 object-dectection/
+yolo*.pt
