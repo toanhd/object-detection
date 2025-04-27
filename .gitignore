@@ -1,4 +1,5 @@
 .object-detection-env/
+obj-detection-env/
 build/
 dist/
 object-detection/
