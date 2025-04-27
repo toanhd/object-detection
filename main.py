@@ -3,32 +3,44 @@
 This module provides functionality to load a YOLOv8 model, detect objects in images,
 and crop detected regions. It handles model loading, image processing, and includes
 configuration for inference parameters.
-
-Returns:
-    None: This is a module file and doesn't return anything directly.
 """
 
 import sys
 import time
 import platform
+from pathlib import Path
+from typing import List, Tuple, Optional
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
-from pathlib import Path
 from ultralytics import YOLO
 from PIL import Image
 
-# Global progress tracking variables
-PROGRESS_WINDOW = None
-PROGRESS_LABEL = None
-PROGRESS_BAR = None
-PROGRESS_COUNT_LABEL = None
-PROGRESS_CURRENT_FILE_LABEL = None
-PROGRESS_CANCELLED = False
+# Constants
+SUPPORTED_FORMATS = ('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp')
+INF_PARAMETERS = {
+    "imgsz": 640,  # image size
+    "conf": 0.8,   # confidence threshold
+    "max_det": 1   # maximum number of detections
+}
 
-# Get the application directory (works with PyInstaller)
-def get_application_path():
-    """Get the application path.
+class ProcessingState:
+    """Class to manage processing state and UI components."""
+    
+    def __init__(self):
+        self.window: Optional[tk.Tk] = None
+        self.progress_bar: Optional[ttk.Progressbar] = None
+        self.count_label: Optional[tk.Label] = None
+        self.file_label: Optional[tk.Label] = None
+        self.cancelled: bool = False
+        
+    def cancel(self):
+        """Mark processing as cancelled."""
+        self.cancelled = True
+
+
+def get_application_path() -> Path:
+    """Get the application path that works with PyInstaller.
 
     Returns:
         Path: The path to the application.
@@ -39,19 +51,19 @@ def get_application_path():
         if base_path:
             return Path(base_path)
         return Path.cwd()
-    else:
-        # Running as a regular Python script
-        return Path.cwd()
+    # Running as a regular Python script
+    return Path.cwd()
 
-def select_footage_folder():
+
+def select_footage_folder() -> Path:
     """Prompt the user to select a footage folder.
     
     Returns:
         Path: The selected footage folder path or default footage folder if canceled.
     """
     # Create a root window but keep it hidden
-    root = tk.Tk()
-    root.withdraw()
+    folder_selector_root = tk.Tk()
+    folder_selector_root.withdraw()
     
     # Create messagebox to explain the folder selection
     messagebox.showinfo(
@@ -63,7 +75,7 @@ def select_footage_folder():
     # Open folder selection dialog
     folder_path = filedialog.askdirectory(
         title="Select Footage Folder",
-        initialdir=str(Path.home())
+        initialdir=str(Path.home().joinpath("Desktop"))
     )
     
     # If the user cancels, use the default footage folder
@@ -74,8 +86,13 @@ def select_footage_folder():
     # Return the selected folder path
     return Path(folder_path)
 
-def show_splash_screen():
-    """Show a splash screen while the application is starting."""
+
+def show_splash_screen() -> Tuple[tk.Tk, ttk.Progressbar]:
+    """Show a splash screen while the application is starting.
+    
+    Returns:
+        Tuple[tk.Tk, ttk.Progressbar]: The splash window and progress bar.
+    """
     # Create splash window
     splash_root = tk.Tk()
     splash_root.title("Object Detection")
@@ -118,55 +135,39 @@ def show_splash_screen():
     
     return splash_root, progress
 
-# Load a pre-trained YOLO model - use yolov8n.pt if best.pt doesn't exist
-app_path = get_application_path()
-WEIGHTS_PATH = app_path / "best.pt"
 
-# Initialize model with appropriate weights
-if WEIGHTS_PATH.exists():
-    print(f"Loading model from {WEIGHTS_PATH}")
-    MODEL = YOLO(WEIGHTS_PATH)
-else:
-    print(f"Warning: {WEIGHTS_PATH} not found. Using default YOLOv8n model.")
-    MODEL = YOLO('yolov8n.pt')  # Use default model
-
-# Prompt user to select footage folder
-IMAGES_PATH = select_footage_folder()
-print(f"Selected footage directory: {IMAGES_PATH.absolute()}")
-
-# Create output directory as a subfolder of the selected folder
-OUTPUT_PATH = IMAGES_PATH / "output"
-OUTPUT_PATH.mkdir(exist_ok=True)
-print(f"Output directory: {OUTPUT_PATH.absolute()}")
-
-INF_PARAMETERS = {
-    "imgsz": 640,  # image size
-    "conf": 0.8,   # confidence threshold
-    "max_det": 1   # maximum number of detections
-}
-
-# Get images from the selected folder
-# Filter out hidden files like .DS_Store
-EXAMPLES = [
-    path for path in IMAGES_PATH.iterdir()
-    if IMAGES_PATH.exists() and IMAGES_PATH.is_dir()
-    and not path.name.startswith('.')
-    and path.is_file()
-    and path.suffix.lower() in ('.jpg', '.jpeg', '.png', '.bmp', '.gif')
-]
+def get_image_files(folder_path: Path) -> List[Path]:
+    """Get list of image files from the folder path.
+    
+    Args:
+        folder_path: Path to folder containing images
+        
+    Returns:
+        List of image file paths
+    """
+    if not (folder_path.exists() and folder_path.is_dir()):
+        print(f"Warning: {folder_path} is not a valid directory")
+        return []
+        
+    return [
+        path for path in folder_path.iterdir()
+        if path.is_file()
+        and not path.name.startswith('.') 
+        and path.suffix.lower() in SUPPORTED_FORMATS
+    ]
 
 
-# Function to detect objects and crop the image
-def detect_and_crop(image: Image.Image) -> Image.Image:
+def detect_and_crop(image: Image.Image, model: YOLO) -> Image.Image:
     """Detect objects and crop the image.
 
     Args:
-        image (Image.Image): The input image to detect objects in.
+        image: The input image to detect objects in.
+        model: The YOLOv8 model to use for detection.
 
     Returns:
-        Image.Image: The cropped image with detected objects.
+        The cropped image with detected objects.
     """
-    results = MODEL.predict(image, **INF_PARAMETERS)
+    results = model.predict(image, **INF_PARAMETERS)
     result = results[0]
     # Check if boxes exists and is not None
     if result.boxes is not None and hasattr(result.boxes, 'xyxy'):
@@ -181,27 +182,25 @@ def detect_and_crop(image: Image.Image) -> Image.Image:
     # Return original image if no valid detection
     return image
 
-
-def create_progress_window(total_images):
+def create_progress_window(total_images: int, state: ProcessingState) -> tk.Tk:
     """Create a window to show processing progress.
     
     Args:
-        total_images (int): Total number of images to process
+        total_images: Total number of images to process
+        state: Processing state object to update
         
     Returns:
-        tuple: References to progress window and its UI elements
+        Progress window
     """
-    global PROGRESS_WINDOW, PROGRESS_LABEL, PROGRESS_BAR, PROGRESS_COUNT_LABEL
-    global PROGRESS_CURRENT_FILE_LABEL, PROGRESS_CANCELLED
-    
-    PROGRESS_CANCELLED = False
+    # Reset cancellation state
+    state.cancelled = False
     
     # Create progress window
     progress_root = tk.Tk()
     progress_root.title("Processing Images")
     progress_root.geometry("500x200")
     progress_root.resizable(False, False)
-    PROGRESS_WINDOW = progress_root
+    state.window = progress_root
     
     # Center the window
     window_width = 500
@@ -216,21 +215,20 @@ def create_progress_window(total_images):
     main_label = tk.Label(progress_root, text="Processing Images", font=("Arial", 14, "bold"))
     main_label.pack(pady=(15, 5))
     
-    PROGRESS_COUNT_LABEL = tk.Label(progress_root, text=f"Image 0 of {total_images}", font=("Arial", 10))
-    PROGRESS_COUNT_LABEL.pack(pady=(0, 5))
+    state.count_label = tk.Label(progress_root, text=f"Image 0 of {total_images}", font=("Arial", 10))
+    state.count_label.pack(pady=(0, 5))
     
-    PROGRESS_CURRENT_FILE_LABEL = tk.Label(progress_root, text="", font=("Arial", 9), fg="blue")
-    PROGRESS_CURRENT_FILE_LABEL.pack(pady=(0, 5))
+    state.file_label = tk.Label(progress_root, text="", font=("Arial", 9), fg="blue")
+    state.file_label.pack(pady=(0, 5))
     
-    PROGRESS_BAR = ttk.Progressbar(progress_root, orient="horizontal", length=450, mode="determinate")
-    PROGRESS_BAR.pack(pady=10)
-    PROGRESS_BAR["maximum"] = total_images
-    PROGRESS_BAR["value"] = 0
+    state.progress_bar = ttk.Progressbar(progress_root, orient="horizontal", length=450, mode="determinate")
+    state.progress_bar.pack(pady=10)
+    state.progress_bar["maximum"] = total_images
+    state.progress_bar["value"] = 0
     
     # Add cancel button
     def cancel_processing():
-        global PROGRESS_CANCELLED
-        PROGRESS_CANCELLED = True
+        state.cancel()
         cancel_button.config(text="Cancelling...", state="disabled")
     
     cancel_button = tk.Button(progress_root, text="Cancel", command=cancel_processing)
@@ -245,54 +243,53 @@ def create_progress_window(total_images):
     return progress_root
 
 
-def update_progress(current_index, filename):
+def update_progress(current_index: int, filename: str, state: ProcessingState) -> None:
     """Update the progress window with current processing status.
     
     Args:
-        current_index (int): Current image index (0-based)
-        filename (str): Name of current file being processed
+        current_index: Current image index (0-based)
+        filename: Name of current file being processed
+        state: Processing state object
     """
-    global PROGRESS_WINDOW, PROGRESS_COUNT_LABEL, PROGRESS_CURRENT_FILE_LABEL, PROGRESS_BAR
-    
-    if PROGRESS_WINDOW is None or PROGRESS_COUNT_LABEL is None or PROGRESS_CURRENT_FILE_LABEL is None or PROGRESS_BAR is None:
-        return
-    
     # Truncate filename if too long
     display_name = filename
     if len(display_name) > 50:
         display_name = display_name[:20] + "..." + display_name[-25:]
     
     # Update UI elements
-    PROGRESS_COUNT_LABEL.config(text=f"Image {current_index + 1} of {PROGRESS_BAR['maximum']}")
-    PROGRESS_CURRENT_FILE_LABEL.config(text=f"Processing: {display_name}")
-    PROGRESS_BAR["value"] = current_index
+    if state.window is None or state.count_label is None or state.file_label is None or state.progress_bar is None:
+        return
+        
+    state.count_label.config(text=f"Image {current_index + 1} of {state.progress_bar['maximum']}")
+    state.file_label.config(text=f"Processing: {display_name}")
+    state.progress_bar["value"] = current_index
     
     # Update the window
-    PROGRESS_WINDOW.update()
+    state.window.update()
 
 
-def close_progress_window():
-    """Close the progress window."""
-    global PROGRESS_WINDOW
+def close_progress_window(state: ProcessingState) -> None:
+    """Close the progress window.
     
-    if PROGRESS_WINDOW is not None:
-        PROGRESS_WINDOW.destroy()
-        PROGRESS_WINDOW = None
+    Args:
+        state: Processing state object
+    """
+    if state.window is not None:
+        state.window.destroy()
+        state.window = None
 
 
-# Function to process a batch of images
-def process_images(image_paths, output_dir):
+def process_images(image_paths: List[Path], output_dir: Path, model: YOLO) -> str:
     """Process a batch of images and save cropped versions.
 
     Args:
-        image_paths (list): List of image file paths to process.
-        output_dir (Path): Directory where processed images will be saved.
+        image_paths: List of image file paths to process.
+        output_dir: Directory where processed images will be saved.
+        model: The YOLOv8 model to use for detection.
 
     Returns:
-        str: A message indicating the status of the processing.
+        A message indicating the status of the processing.
     """
-    global PROGRESS_CANCELLED
-    
     if not image_paths:
         print("No images found to process.")
         return "No images processed"
@@ -300,24 +297,25 @@ def process_images(image_paths, output_dir):
     # Create output directory if it doesn't exist
     output_dir.mkdir(exist_ok=True)
     
-    # Create progress window
-    create_progress_window(len(image_paths))
+    # Create processing state object and progress window
+    state = ProcessingState()
+    create_progress_window(len(image_paths), state)
     
     processed_count = 0
     for i, img_path in enumerate(image_paths):
         # Check if processing was cancelled
-        if PROGRESS_CANCELLED:
-            close_progress_window()
+        if state.cancelled:
+            close_progress_window(state)
             return f"Processing cancelled: {processed_count} of {len(image_paths)} images processed"
         
         # Update progress
-        update_progress(i, str(img_path.name))
+        update_progress(i, str(img_path.name), state)
         
         try:
             # Open image
             img = Image.open(img_path)
             # Detect and crop
-            cropped_img = detect_and_crop(img)
+            cropped_img = detect_and_crop(img, model)
             # Save or process further as needed
             output_path = output_dir / f"{img_path.stem}_cropped{img_path.suffix}"
             cropped_img.save(output_path)
@@ -334,133 +332,75 @@ def process_images(image_paths, output_dir):
             print(f"Value error for {img_path}: {e}")
     
     # Close progress window
-    close_progress_window()
+    close_progress_window(state)
     
     return f"Processing complete: {processed_count} images processed"
 
 
-def show_countdown_window(seconds=5, processed_count=0, output_dir=None):
-    """Show a countdown window with progress bar before exiting.
-    
-    Args:
-        seconds (int): Number of seconds to countdown
-        processed_count (int): Number of images processed
-        output_dir (Path): Directory where images were saved
-    """
-    # Create countdown window
-    countdown_root = tk.Tk()
-    countdown_root.title("Processing Complete")
-    countdown_root.geometry("400x250")
-    countdown_root.resizable(False, False)
-    
-    # Center the window
-    window_width = 400
-    window_height = 250
-    screen_width = countdown_root.winfo_screenwidth()
-    screen_height = countdown_root.winfo_screenheight()
-    x_pos = (screen_width - window_width) // 2
-    y_pos = (screen_height - window_height) // 2
-    countdown_root.geometry(f"{window_width}x{window_height}+{x_pos}+{y_pos}")
-    
-    # Add processing status information
-    status_frame = tk.Frame(countdown_root)
-    status_frame.pack(pady=(15, 10), fill=tk.X, padx=20)
-    
-    status_label = tk.Label(status_frame, text="Processing Summary:", font=("Arial", 12, "bold"))
-    status_label.pack(anchor="w")
-    
-    images_label = tk.Label(status_frame, text=f"Processed images: {processed_count}", font=("Arial", 10))
-    images_label.pack(anchor="w", pady=2)
-    
-    if output_dir:
-        output_label = tk.Label(status_frame, text=f"Output directory:", font=("Arial", 10))
-        output_label.pack(anchor="w", pady=2)
-        
-        # Use smaller font and ellipsis if path is too long
-        path_str = str(output_dir.absolute())
-        if len(path_str) > 50:
-            path_str = path_str[:47] + "..."
-        path_label = tk.Label(status_frame, text=path_str, font=("Arial", 9), fg="blue")
-        path_label.pack(anchor="w")
-    
-    # Add separator
-    separator = ttk.Separator(countdown_root, orient="horizontal")
-    separator.pack(fill=tk.X, padx=20, pady=10)
-    
-    # Add exit countdown information
-    main_label = tk.Label(countdown_root, text="Application will close in:", font=("Arial", 11))
-    main_label.pack()
-    
-    time_label = tk.Label(countdown_root, text=f"{seconds}", font=("Arial", 24, "bold"))
-    time_label.pack(pady=5)
-    
-    progress = ttk.Progressbar(countdown_root, orient="horizontal", length=350, mode="determinate")
-    progress.pack(pady=10)
-    progress["maximum"] = seconds
-    progress["value"] = 0
-    
-    def update_countdown(remaining):
-        if remaining > 0:
-            time_label.config(text=f"{remaining}")
-            progress["value"] = seconds - remaining
-            countdown_root.after(1000, update_countdown, remaining - 1)
-        else:
-            countdown_root.destroy()
-            sys.exit()
-    
-    # Start the countdown
-    countdown_root.after(100, update_countdown, seconds)
-    countdown_root.mainloop()
-
-
-# Main execution
-if __name__ == "__main__":
+def main() -> None:
+    """Main function to run the application."""
     # Show splash screen
     splash, splash_progress = show_splash_screen()
     
     # Load the model (keep splash screen visible during model loading)
     app_path = get_application_path()
-    WEIGHTS_PATH = app_path / "best.pt"
+    weights_path = app_path / "best.pt"
     
     # Initialize model with appropriate weights
-    if WEIGHTS_PATH.exists():
-        print(f"Loading model from {WEIGHTS_PATH}")
-        MODEL = YOLO(WEIGHTS_PATH)
+    model = None
+    if weights_path.exists():
+        print(f"Loading model from {weights_path}")
+        model = YOLO(weights_path)
     else:
-        print(f"Warning: {WEIGHTS_PATH} not found. Using default YOLOv8n model.")
-        MODEL = YOLO('yolov8n.pt')  # Use default model
+        print(f"Warning: {weights_path} not found. Using default YOLOv8n model.")
+        model = YOLO('yolov8n.pt')  # Use default model
         
     # Close splash screen after model is loaded
     splash_progress.stop()
     splash.destroy()
     
+    # Get input and output paths
+    footage_path = select_footage_folder()
+    print(f"Selected footage directory: {footage_path.absolute()}")
+    
+    # Create output directory as a subfolder of the selected folder
+    output_path = footage_path / "output"
+    output_path.mkdir(exist_ok=True)
+    print(f"Output directory: {output_path.absolute()}")
+    
+    # Get image files from the selected folder
+    image_files = get_image_files(footage_path)
+    
     # Process images from selected folder
-    if EXAMPLES:
-        print(f"Found {len(EXAMPLES)} images to process in selected folder")
-        RESULT = process_images(EXAMPLES, OUTPUT_PATH)
+    if image_files:
+        print(f"Found {len(image_files)} images to process in selected folder")
+        result = process_images(image_files, output_path, model)
         
         # Show completion message
-        root = tk.Tk()
-        root.withdraw()
+        message_root = tk.Tk()
+        message_root.withdraw()
         messagebox.showinfo(
             "Processing Complete", 
-            f"Processed {len(EXAMPLES)} images.\n"
-            f"Output files saved to: {OUTPUT_PATH.absolute()}"
+            f"Processed {len(image_files)} images.\n"
+            f"Output files saved to: {output_path.absolute()}"
         )
     else:
         print("No images found in the selected folder.")
-        RESULT = "No processing performed"
+        result = "No processing performed"
         
         # Show error message
-        root = tk.Tk()
-        root.withdraw()
+        message_root = tk.Tk()
+        message_root.withdraw()
         messagebox.showwarning(
             "No Images Found", 
             "No images found in the selected folder.\n"
             "Please try again with a folder containing images."
         )
     
-    print(RESULT)
-    
+    print(result)
+
+
+if __name__ == "__main__":
+    main()
     # Exit the application immediately
     sys.exit()
